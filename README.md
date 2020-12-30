@@ -1,3 +1,4 @@
+# OAICAT-figshare
 
 **OAICAT-figshare** is an extension library for
 [OAICat](https://www.oclc.org/research/areas/data-science/oaicat.html)
@@ -15,8 +16,8 @@ provides a repository framework that conforms to the
 OAICat can be customised to work with arbitrary data repositories.
 
 **OAICAT-figshare** has been built and tested with
-*oaicat-1.5.63* and
-*figshare API v2* (2020-Dec-31).
+*[oaicat-1.5.63](https://github.com/OCLC-Research/oaicat)* and
+*[figshare API v2](https://docs.figshare.com/)* (2020-Dec-31).
 
 
 ## INSTALL NOTES
