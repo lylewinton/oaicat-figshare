@@ -15,38 +15,44 @@ provides a repository framework that conforms to the
 [Open Archives Initiative Protocol for Metadata Harvesting (OAI-PMH) v2.0](https://www.openarchives.org/pmh/).
 OAICat can be customised to work with arbitrary data repositories.
 
-**OAICAT-figshare** has been built and tested with
-*[oaicat-1.5.63](https://github.com/OCLC-Research/oaicat)* and
-*[figshare API v2](https://docs.figshare.com/)* (2020-Dec-31).
-
+**OAICAT-figshare** has been built with
+*[oaicat-1.5.63](https://github.com/OCLC-Research/oaicat)* and tested on
+*[figshare API v2](https://docs.figshare.com/)* (2021-Nov-21);
+*[Apache Tomcat Version 9.0.41](http://tomcat.apache.org/)*;
+Ubuntu 20.04.1 LTS; default-jdk package (openjdk 11.0.9.1).
 
 ## INSTALL NOTES
 
 Instructions for Tomcat:
-1. Deploy oaicat.war on running Tomcat. Should create `webapps\oaicat` folder.
-2. Copy libraries (oaicat-figshare.jar json-simple-1.1.1.jar) where they can be
-   found by Tomcat, ideally the oaicat lib folder (`webapps\oaicat\WEB-INF\lib`)
-3. Replace oaicat.properties with oaicat-figshare-example.properties
-   (Found in the `webapps\oaicat\WEB-INF folder`, referred to by web.xml as
-   the context-param "properties". Full path might be necessary in web.xml .)
-4. Update new oaicat.properties values to use oaicat-figshare custom classes:
+1. Download the following files required for install:
+   * **oaicat-figshare.jar** from [releases](https://github.com/lylewinton/oaicat-figshare/releases)
+   * **oaicat.war** and **json-simple-1.1.1.jar** from the [lib](https://github.com/lylewinton/oaicat-figshare/tree/master/lib) folder
+   * **oaicat-figshare-example.properties** and **oaicat.xsl** from the [/](https://github.com/lylewinton/oaicat-figshare/) folder
+2. First deploy oaicat.war on a running Tomcat. This should create the `webapps\oaicat` folder.
+3. Copy the other libraries (oaicat-figshare.jar, json-simple-1.1.1.jar) where they can be
+   found by Tomcat, ideally the oaicat lib folder `webapps\oaicat\WEB-INF\lib`
+4. Replace oaicat.properties with oaicat-figshare-example.properties in the
+   `webapps\oaicat\WEB-INF` folder. In the web.xml file in this folder, find the
+   `<context-param` block containing `<param-name>properties</param-name>` and `<param-value>` should specify the oaicat.properties file.
+   Modify the `<param-value>` line to specifying the full path to the file, often necessary.
+5. Update new oaicat.properties values to use oaicat-figshare custom classes:
    ```
    AbstractCatalog.oaiCatalogClassName=net.datanoid.oaipmh.figshare.FigshareOAICatalog
    AbstractCatalog.recordFactoryClassName=net.datanoid.oaipmh.figshare.JSONRecordFactory
    Crosswalks.oai_dc=net.datanoid.oaipmh.figshare.JSON2oai_dc
    ```
-5. Update oaicat.properties settings, especially for:
+6. Update oaicat.properties settings, especially for:
    ```
    Identify.* - normal OAICAT settings
    FigshareOAICatalog.*
    JSON2oai_dc.*
    ```
-6. Optionally install the example logging.properties file so you can get an
+7. Optionally install the example logging.properties file so you can get an
    oaicat logfile including oaicat-figshare info or debug. (Install it here
    `webapps\oaicat\WEB-INF\classes` )
-7. Optionally replace the oaicat.xsl (web browser transform) as oaicat-figshare
+8. Optionally replace the oaicat.xsl (web browser transform) as oaicat-figshare
    makes use of xmlns:dcterms, URI types and this improves presentation.
-8. Restart Tomcat then access oaicat (http://localhost:8080/oaicat/) and watch
+9. Restart Tomcat then access oaicat (http://localhost:8080/oaicat/) and watch
    the console for errors.
 
 
