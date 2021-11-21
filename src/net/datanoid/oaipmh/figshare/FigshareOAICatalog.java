@@ -50,6 +50,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
+import java.util.TimeZone;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -132,11 +133,15 @@ public class FigshareOAICatalog extends AbstractCatalog {
         String finedate = toFinestUntil(indate);
         LOG.log(Level.FINER, "convertToFigshareQueryDate() finedate="+finedate);
         SimpleDateFormat strFormatOut1 = new SimpleDateFormat("dd/MM/yyyy");
+        strFormatOut1.setTimeZone(TimeZone.getTimeZone("UTC"));
         SimpleDateFormat strFormatOut2 = new SimpleDateFormat("dd/MM/yyyy'T'HH:mm:ss'Z'");
+        strFormatOut2.setTimeZone(TimeZone.getTimeZone("UTC"));
         String formatIn1 = "yyyy-MM-dd";
-        String formatIn2 = "yyyy-MM-dd'T'HH:mm:ss'Z'";
+        String formatIn2 = "yyyy-MM-dd'T'HH:mm:ssX";
         SimpleDateFormat strFormatIn1 = new SimpleDateFormat(formatIn1);
+        strFormatIn1.setTimeZone(TimeZone.getTimeZone("UTC"));
         SimpleDateFormat strFormatIn2 = new SimpleDateFormat(formatIn2);
+        strFormatIn1.setTimeZone(TimeZone.getTimeZone("UTC"));
         // Fix OAICAT setting the year to 9999, as figshare needs 2999
         if ( finedate.startsWith("9999") ) {
             finedate = "2999"+finedate.substring(4);
