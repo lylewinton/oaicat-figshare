@@ -44,36 +44,52 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 /**
- * Class to manage figshare API calls.
- * 
- * Pattern:
- *   For private calls set your Personal Token using setAuthToken() first.
- *   Call a private/public method which returns 0 if completed without error.
- *   If an error you can check the returned statusCode or errorMessage.
- *   If not an error, the results will be, depending on the call, either:
- *      responseJSON - a single JSONObject
+ * Light weight REST API interface to manage figshare API calls, optionally authenticated.
+ * The API URL is hard-coded, as figshare is a singularly global system.
+ * A retry count can be set but defaults to a single request.
+ * A timeout of 30,000 milliseconds is set by default.
+ * <p>
+ * The output of a successful action is either placed in responseJSON or responseArrayJSON,
+ * depending on if a JSON object or array is returned.
+ * See the JSON Simple library for more info on navigating the output.
+ * <p>
+ * All actions leverage the generic call() method.
+ * Actions such as privateArticleDetails() setup the REST URL and inputs,
+ * call the call() method, then just check for a valid status code response.
+ * The underlying statusCode, statusMessage, and full text response are all available.
+ * Any IO, java or server error output is available via errorMessage.
+ * <p>
+ * Pattern:<ul>
+ *   <li>For private calls set your Personal Token using setAuthToken() first.
+ *   <li>Call a private/public method which returns 0 if completed without error.
+ *   <li>If an error you can check the returned statusCode or errorMessage.
+ *   <li>If not an error, the results will be, depending on the call, either:
+ *      responseJSON - a single JSONObject; or
  *      responseArrayJSON - an array of objects (a JSONArray)
- *   (If all else fails "response" holds the full text response.)
+ *   <li>(If all else fails "response" holds the full text response.)
+ * </ul>
  * 
- *   eg. 
+ * <p>Example:
+ * <pre>{@code
  *      FigshareConnection connection = FigshareConnection.getInstance();
  *      int ret = connection.privateArticlesSearch(":institution: melbourne", 1, 10);
  *      if (ret == 1)
  *          System.err.println("ERROR: "+connection.errorMessage);
  *      else
  *          System.err.println("Found count="+connection.responseArrayJSON.size());
+ * }</pre>
  * 
  * TODO /account/projects/{project_id}/articles
  * TODO /account/projects/search
  * TODO /account/projects
  * TODO /account/projects/{project_id}/collaborators
- * UNSURE
+ * UNKNOWN PRIORITY:
  * TODO /account/institution/articles (admin, limited)
  * TODO /account/articles/{article_id} (if admin, can see???)
- * LATER
+ * LATER PRIORITY:
  * TODO /account/institution/accounts/search (admin)
- * TODO /account/articles/search :project: project_name (which impersonated can edit)
- * LISTS for entry
+ * TODO /account/articles/search :project: project_name (which if impersonated can edit)
+ * LISTS which may help with data entry:
  * TODO /account/authors/search
  * TODO /account/authors/{author_id}
  * TODO /account/categories
@@ -91,7 +107,7 @@ public class FigshareConnection {
     private int retryCount = 0;
     private String apiURI = "https://api.figshare.com/v2";
     private static String apiURIsecure = "https://api.figshare.com/v2";
-    private static String apiURIinsecure = "http://api.figshare.com/v2";
+    //private static String apiURIinsecure = "http://api.figshare.com/v2";
 
     /**
      * Returns the last call return value, 0 is success.
@@ -112,15 +128,42 @@ public class FigshareConnection {
      * 500 = internal server error ;
      */
     public int statusCode = 0;
+
+    /**
+     * Holds the last request underlying HTTP status message, that went with the status code.
+     */
     public String statusMessage = null;
+
+    /**
+     * Holds the last request error message of any IO, java or server error output.
+     */
     public String errorMessage = null;
+
+    /**
+     * Holds the full text response of the last request.
+     */
     public String response = null;
+
+    /**
+     * Output of a successful action returning a JSON object is placed here.
+     */
     public JSONObject responseJSON = null;
+
+    /**
+     * Output of a successful action returning a JSON array is placed here.
+     */
     public JSONArray responseArrayJSON = null;
     
+    /**
+     * Constructor.
+     */
     public FigshareConnection() {
     }
     
+    /**
+     * Set a Personal Token for login use via account.
+     * @param authToken
+     */
     public void setAuthToken(String authToken) {
         if ( (authToken == null) || (authToken.length()==0) )
             this.authorization = null;
@@ -128,13 +171,19 @@ public class FigshareConnection {
             this.authorization = "token "+authToken;
     }
 
+    /**
+     * Set the number of milliseconds to wait for any API response.
+     * @param readTimeout number of milliseconds, 30000 is default
+     */
     public void setReadTimeout(int readTimeout) {
         this.readTimeout = readTimeout;
     }
     
     /**
      * Ensure connections are HTTPS.
+     * @deprecated Insecure connections no longer supported, so all connections are secure by default.
      */
+    @Deprecated
     public void setSecureConnection() {
         apiURI = apiURIsecure;
     }
@@ -143,9 +192,12 @@ public class FigshareConnection {
      * Ensure connections are HTTP not HTTPS.
      * There's some evidence that Java's automatic keep-alive connection pooling
      * doesn't would for HTTPS.
+     * @deprecated Insecure connections no longer supported, so all connections are secure by default.
      */
+    @Deprecated
     public void setInsecureConnection() {
-        apiURI = apiURIinsecure;
+        //apiURI = apiURIinsecure;
+        apiURI = apiURIsecure;
     }
     
     /**
@@ -241,7 +293,7 @@ public class FigshareConnection {
      * @param query Structured query string normally used via the web (https://docs.figshare.com/#search_how_to_find_data_on_figshare).
      * @param page Requested page starting with 1.
      * @param page_size Number of articles returned each page.
-     * @param map Any additional params to send to figshare, or null if none. Can be used to override order/order_direction.
+     * @param inputs Any additional params to send to figshare, or null if none. Can be used to override order/order_direction.
      * @return 0 for success, -1 HTTP error, 1 figshare error.
      */
     public int privateArticlesSearch(String query, int page, int page_size, Map inputs) {
@@ -271,7 +323,7 @@ public class FigshareConnection {
      * @param query Structured query string normally used via the web (https://docs.figshare.com/#search_how_to_find_data_on_figshare).
      * @param page Requested page starting with 1.
      * @param page_size Number of articles returned each page.
-     * @param map Any additional params to send to figshare, or null if none. Can be used to override order/order_direction.
+     * @param inputs Any additional params to send to figshare, or null if none. Can be used to override order/order_direction.
      * @return 0 for success, -1 HTTP error, 1 figshare error.
      */
     public int publicArticlesSearch(String query, int page, int page_size, Map inputs) {
@@ -306,9 +358,7 @@ public class FigshareConnection {
      * @return
      */
     public int call(String method, String path, JSONObject data) {
-        // TODO check if path is a full URL
         // TODO implement Impersonation see figshare docs
-
         URL url;
         HttpURLConnection urlConnection = null;
         responseJSON = new JSONObject();
@@ -372,7 +422,6 @@ public class FigshareConnection {
                     LOG.log(Level.FINER, "call() attempting to parse JSON...");
                     JSONParser parser = new JSONParser();
                     Object obj = parser.parse(response);
-                    // TODO check if JSONArray or JSONObject?
                     if (obj instanceof JSONObject) {
                         LOG.log(Level.FINER, "call() found JSONObject");
                         responseJSON = (JSONObject)obj;
