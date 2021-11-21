@@ -201,7 +201,6 @@ public class FigshareOAICatalog extends AbstractCatalog {
         String localIdentifier = getRecordFactory().fromOAIIdentifier(identifier);
         LOG.log(Level.FINE, "getSchemaLocations() for localIdentifier="+localIdentifier);
         FigshareConnection connection = new FigshareConnection();
-        connection.setInsecureConnection();
         connection.setRetryCount(2);
         JSONObject nativeItem = null;
         int result = connection.pulbicArticleDetails(Long.parseLong(localIdentifier));
@@ -310,7 +309,6 @@ public class FigshareOAICatalog extends AbstractCatalog {
         ArrayList ids = new ArrayList();
         LOG.log(Level.FINE, "findIdentifiers() page="+page+" filter="+filter);
         FigshareConnection connection = new FigshareConnection();
-        connection.setInsecureConnection();
         connection.setRetryCount(2);
         int result = connection.publicArticlesSearch(filter, page, maxListSize, inputs);
         LOG.log(Level.FINE, "findIdentifiers() figshare publicArticlesSearch return="+result);
@@ -391,7 +389,6 @@ public class FigshareOAICatalog extends AbstractCatalog {
         String localIdentifier = getRecordFactory().fromOAIIdentifier(identifier);
         LOG.log(Level.FINE, "getRecord() for localIdentifier="+localIdentifier);
         FigshareConnection connection = new FigshareConnection();
-        connection.setInsecureConnection();
         connection.setRetryCount(2);
         JSONObject nativeItem = null;
         int result = connection.pulbicArticleDetails(Long.parseLong(localIdentifier));
