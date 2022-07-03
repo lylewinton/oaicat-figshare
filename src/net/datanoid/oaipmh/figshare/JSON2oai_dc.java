@@ -105,10 +105,12 @@ public class JSON2oai_dc extends Crosswalk {
      */
     public boolean isAvailableFor(Object nativeItem) {
         JSONObject jitem = (JSONObject) nativeItem;
-        //TODO later check if all/crucial items are present
         if (jitem.get("title") == null) return false;
         if (jitem.get("id") == null) return false;
         if (jitem.get("description") == null) return false;
+        if (jitem.get("citation") == null) return false;
+        if (jitem.get("defined_type_name") == null) return false;
+        if (jitem.get("url_public_html") == null) return false;
         return true;
     }
 
@@ -243,7 +245,7 @@ public class JSON2oai_dc extends Crosswalk {
         }
         String figshareurl = (String) jitem.get("url_public_html");
         if (uri==null) {
-            // if no DOI or Handle, use the figshare URL
+            // if no DOI or Handle, use the figshare URL as identifier
             sb.append("<dc:identifier xsi:type=\"dcterms:URI\">");
             sb.append( figshareurl );
             sb.append("</dc:identifier>\n");
@@ -283,6 +285,8 @@ public class JSON2oai_dc extends Crosswalk {
                 sb.append("<!-- Embargoed until -->\n<dcterms:available>");
                 sb.append( emb );
                 sb.append("</dcterms:available>\n");
+            } else {
+                sb.append("<!-- Embargoed indefinitely, restricted access -->\n");
             }
         }
         // Get the description, which can include HTML markup
@@ -349,11 +353,11 @@ public class JSON2oai_dc extends Crosswalk {
                 dctype="Text";
                 break;
         }
-        sb.append("<dc:type>");
+        sb.append("<dc:type xsi:type=\"dcterms:DCMIType\">");
         sb.append( dctype );
         sb.append("</dc:type>\n");
         if (!dctype.equalsIgnoreCase(typename)) {
-            sb.append("<!-- Type in figshare -->\n<dc:type>");
+            sb.append("<dc:type xsi:type=\"figshare:types\">");
             sb.append( typename );
             sb.append("</dc:type>\n");
         }
@@ -428,7 +432,7 @@ public class JSON2oai_dc extends Crosswalk {
             for (Object item: categories) {
                 JSONObject cat = (JSONObject)item;
                 String title = (String)cat.get("title");
-                sb.append("<dc:subject xsi:type=\"figshare:Categories\">");
+                sb.append("<dc:subject xsi:type=\"figshare:categories\">");
                 sb.append(cdata_escape(title) );
                 sb.append("</dc:subject>\n");
             }
@@ -437,7 +441,7 @@ public class JSON2oai_dc extends Crosswalk {
         if (tags != null)
             for (Object item: tags) {
                 String tag = (String)item;
-                sb.append("<dc:subject xsi:type=\"figshare:tag\">");
+                sb.append("<dc:subject xsi:type=\"figshare:tags\">");
                 sb.append(cdata_escape(tag) );
                 sb.append("</dc:subject>\n");
             }
