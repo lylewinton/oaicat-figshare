@@ -60,7 +60,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- *
+ * Command-line interface to allow harvesting of recent figshare records
+ * (OAI-PMH ListRecords style) without the need for an OAI web server in between.
+ * Run this class without arguments to obtain help on what arguments are required.
+ * 
  * @author Lyle Winton <lyle@winton.id.au>
  */
 public class FigshareOAIMain {
@@ -118,12 +121,12 @@ public class FigshareOAIMain {
             System.err.println("ERROR: Required arguments not found.\n"
                     + "Use:  Emulate an OAI-PMH \"ListRecords\" request outputing the returned records to separate files.\n"
                     + "Arguments:  [-debug|-ddebug] [-get-xml-element xml-element] [-get-xml-content] /path/to/oaicat-figshare.properties output-folder from-date until-date metadataPrefix\n"
-                    + "   xml-element = specify name \"namespace:element\" to extract from within each record (eg. oai_dc:dc or csw:Record)\n"
+                    + "   xml-element = specify name \"namespace:element\" to extract from within each record (eg. oai_dc:dc or json:element)\n"
                     + "   -get-xml-content - return the contents of the element, not the including the XML element"
                     + "   output-folder = folder location to write new record files\n"
                     + "   from-date = yyyy-MM-dd  OR  yyyy-MM-ddTHH:mm:ssX  (eg. 2022-07-02T14:23:48Z best practice to use UTC timezone indicated by X=Z)\n"
                     + "   until-date = as above  OR  - dash for current time\n"
-                    + "   metadataPrefix = oai_dc  OR  csw\n"
+                    + "   metadataPrefix = oai_dc  OR  json\n"
                     + "      (supported metadataPrefix types found in properties file as 'Crosswalks.<metadataPrefix>=...' parameters)");
             System.exit(-1);
         }

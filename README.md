@@ -8,8 +8,9 @@ to harvest recently updated figshare records.
 By configuring a *FigshareOAICatalog.searchFilter* you can present a virtual
 repository, eg. an institutional figshare repository, or specific groups, or via specific tags.
 The *JSON2oai_dc* Crosswalk outputs rich Dublin Core metadata (DC).
-Beyond ordinary DC elements, figshare files and custom_fields can be output as metadata
-and can be customised to create flexible output elements.
+The *JSON2json* Crosswalk simply outputs the source JSON from figshare.
+Beyond ordinary DC elements, figshare files and custom_fields can be output as
+other metadata elements and can be customised flexibly.
 
 **OAICAT-figshare** is now also an executable tool. If all you want is to harvest
 recent figshare records (OAI-PMH ListRecords style) without the need for an OAI
@@ -47,6 +48,7 @@ Instructions for Tomcat:
    AbstractCatalog.oaiCatalogClassName=net.datanoid.oaipmh.figshare.FigshareOAICatalog
    AbstractCatalog.recordFactoryClassName=net.datanoid.oaipmh.figshare.JSONRecordFactory
    Crosswalks.oai_dc=net.datanoid.oaipmh.figshare.JSON2oai_dc
+   Crosswalks.json=net.datanoid.oaipmh.figshare.JSON2json
    ```
 6. Update oaicat.properties settings, especially the following:
    ```
@@ -73,6 +75,7 @@ Instructions for Tomcat:
    ```
    $ java -jar oaicat-figshare.jar
    $ java -jar oaicat-figshare.jar -get-xml-element oai_dc:dc oaicat-figshare-example.properties ./outputfolder 2022-04-01 - oai_dc
+   $ java -jar oaicat-figshare.jar -get-xml-element json:element -get-xml-content oaicat-figshare-example.properties ./outputfolder 2022-04-01 - json
    ```
 
 

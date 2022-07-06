@@ -35,7 +35,9 @@ import java.util.logging.Logger;
 import org.json.simple.JSONObject;
 
 /**
- *
+ * Take the native JSONObject "item" and wrap the JSON within an XML element.
+ * This Crosswalk assumes the native JSONObject article details from figshare.
+ * 
  * @author Lyle Winton <lyle@winton.id.au>
  */
 public class JSON2json  extends Crosswalk {
