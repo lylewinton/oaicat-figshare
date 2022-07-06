@@ -84,6 +84,7 @@ public class FigshareOAIMain {
         // Handle command line arguments
         ArrayList argslist = new ArrayList( Arrays.asList(args) );
         String xmlelement = "";
+        boolean xmlcontent = false;
         while (argslist.size()>0) {
             String firstarg = (String) argslist.get(0);
             if (firstarg.equals("-debug")) {
@@ -106,13 +107,19 @@ public class FigshareOAIMain {
                 argslist.remove(0);
                 continue;
             }
+            if (firstarg.equals("-get-xml-content")) {
+                argslist.remove(0);
+                xmlcontent = true;
+                continue;
+            }
             break;
         }
         if (argslist.size() != 5) {
             System.err.println("ERROR: Required arguments not found.\n"
                     + "Use:  Emulate an OAI-PMH \"ListRecords\" request outputing the returned records to separate files.\n"
-                    + "Arguments:  [-debug|-ddebug] [-get-xml-element element-name] /path/to/oaicat-figshare.properties output-folder from-date until-date metadataPrefix\n"
-                    + "   element-name = namespace:element to extract from within each returned record (eg. oai_dc:dc or csw:Record)\n"
+                    + "Arguments:  [-debug|-ddebug] [-get-xml-element xml-element] [-get-xml-content] /path/to/oaicat-figshare.properties output-folder from-date until-date metadataPrefix\n"
+                    + "   xml-element = specify name \"namespace:element\" to extract from within each record (eg. oai_dc:dc or csw:Record)\n"
+                    + "   -get-xml-content - return the contents of the element, not the including the XML element"
                     + "   output-folder = folder location to write new record files\n"
                     + "   from-date = yyyy-MM-dd  OR  yyyy-MM-ddTHH:mm:ssX  (eg. 2022-07-02T14:23:48Z best practice to use UTC timezone indicated by X=Z)\n"
                     + "   until-date = as above  OR  - dash for current time\n"
@@ -129,7 +136,8 @@ public class FigshareOAIMain {
         String metadataPrefix = (String) argslist.get(4);
         System.out.println("### properties-file="+confFileName);
         System.out.println("### output-folder="+outputFolderName);
-        System.out.println("### element-name="+xmlelement);
+        System.out.println("### xml-element="+xmlelement);
+        System.out.println("### get-xml-content="+xmlcontent);
         System.out.println("### from-date="+fromDate);
         System.out.println("### until-date="+toDate);
         System.out.println("### metadataPrefix="+metadataPrefix);
@@ -212,6 +220,18 @@ public class FigshareOAIMain {
                         int i2 = record.lastIndexOf("</"+xmlelement);
                         int i3 = record.indexOf(">", i2);
                         record = record.substring(i1, i3+1);
+                        if (xmlcontent) {
+                            // attempt to strip off root element start and end XML
+                            i1 = record.indexOf(">",1);
+                            i2 = record.lastIndexOf("</"+xmlelement);
+                            record = record.substring(i1+1, i2);
+                            // check if we've got something CDATA escaped, and strip out the CDATA
+                            // this is technically incorrect decoding, but because oaicat-figshare escaped this text originally, it's predictable
+                            if (record.startsWith("<![CDATA[") && record.endsWith("]]>")) {
+                                record = record.substring( "<![CDATA[".length() , record.length()-"]]>".length() );
+                                record = record.replaceAll("]]]]><!\\[CDATA\\[>", "]]>");
+                            }
+                        }       
                     }
                     // save to file
                     //System.out.println(record);
@@ -223,8 +243,12 @@ public class FigshareOAIMain {
                                         new FileOutputStream(fileoutpath.toFile()),
                                         "UTF-8")
                         );
+                        if (!xmlcontent) {
+                            // literal copied from OAICat
+                            out.write("<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n");
+                        }
                         out.write(record);
-                        out.newLine();
+                        out.write("\n");
                         out.close();
                         LOG.log(Level.FINER, "Done writing file: " + fileoutpath.toString());
                     } catch (IOException iOException) {
