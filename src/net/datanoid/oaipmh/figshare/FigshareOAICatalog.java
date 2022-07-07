@@ -58,23 +58,25 @@ import net.datanoid.figshare.FigshareConnection;
 import org.json.simple.JSONObject;
 
 /**
- * FigshareOAICatalog is an example of how to implement the AbstractCatalog interface.
- * Pattern an implementation of the AbstractCatalog interface after this class
- * to have OAICat work with your database. Your effort may be minimized by confining
- * your changes to areas identified by "YOUR CODE GOES HERE" comments. In truth, though,
- * you can do things however you want, as long as the non-private methods return
- * what they're supposed to.
+ * FigshareOAICatalog is an implementation of the AbstractCatalog interface.
+ * This class converts requests to queries for the figshare API and returns results.
  * 
  * CONSIDERATIONS:
  *   - Items within a project are not selectable by a searchFilter.
  *     No figshare call exists that provides project items after a given date.
  *   - Filtering based on :group: may capture more than one group.
  *     Groups ID's can be provided on publicArticlesSearch, but not yet implemented.
- *   - Filtering based on :institution: seems to also capture more records.
  * 
  * TODO: Implement filter on file (regex), output custom metadata link, or output file contents as custom metadata, or output some metadata within the file as custom metadata (eg. if XML/JSON)
  * TODO: filter out items based is_embargoed ?
  * TODO: filter out items based is_metadata_record ?
+ * 
+ * TODO: split out oai_dc from qdc:qualifieddc
+ * 
+ * TODO: It appears that unpublished items might be returned via the
+ *  figshare connection.publicArticlesSearch call, but will trigger a
+ *  IdDoesNotExistException for getRecord or listRecords.
+ *  Convert these into a OAI delete record.
  * 
  * @author Lyle Winton <lyle@winton.id.au>
  */
@@ -85,6 +87,7 @@ public class FigshareOAICatalog extends AbstractCatalog {
     protected static int maxListSize;
     private static final Logger LOG = Logger.getLogger(FigshareOAICatalog.class.getName());
     private static String searchFilter;
+    private static Integer institution = null;
 
     /**
      * pending resumption tokens
@@ -115,9 +118,14 @@ public class FigshareOAICatalog extends AbstractCatalog {
         }
         
         searchFilter = properties.getProperty("FigshareOAICatalog.searchFilter");
-        if (searchFilter == null) {
-            LOG.log(Level.INFO, "FigshareOAICatalog.searchFilter is missing from the properties file.");
-            throw new IllegalArgumentException("FigshareOAICatalog.searchFilter is missing from the properties file");
+        if (searchFilter != null) {
+            if (searchFilter.trim().length() == 0)
+                searchFilter = null;
+        }
+        
+        String institutionstring = properties.getProperty("FigshareOAICatalog.institution");
+        if (institutionstring != null) {
+            FigshareOAICatalog.institution = Integer.parseInt(institutionstring);
         }
     }
     
@@ -235,6 +243,23 @@ public class FigshareOAICatalog extends AbstractCatalog {
         return ret;
     }
 
+    private String getSearchFilter(String until) throws BadArgumentException {
+        String filterdates = null;
+        if ((until!=null) && (until.length()>0)) {
+            filterdates = ":modified_before: " +
+                    convertToFigshareQueryDate(until,true);
+        }
+        String filter = "";
+        if (searchFilter==null) {
+            if (filterdates!=null)
+                filter = filterdates;
+        } else if (filterdates!=null)
+            filter = searchFilter + " AND ( " + filterdates + " )";
+        else
+            filter = searchFilter;
+        return filter;
+    }
+    
     /**
      * Retrieve a list of identifiers that satisfy the specified criteria
      *
@@ -258,16 +283,14 @@ public class FigshareOAICatalog extends AbstractCatalog {
             throws BadArgumentException, OAIInternalServerError {
         LOG.log(Level.FINE, "listIdentifiers() for from="+from+" until="+until);
         purge(); // clean out old resumptionTokens
-        String filter = searchFilter;
-        if ((until!=null) && (until.length()>0)) {
-            filter = searchFilter + " AND ( :modified_before: " +
-                    convertToFigshareQueryDate(until,true) + " )";
-        }
+        String filter = getSearchFilter(until);
         HashMap inputs = null;
         if ((from!=null) && (from.length()>0)) {
             inputs = new HashMap();
             inputs.put("modified_since", from);
         }
+        if (institution != null)
+            inputs.put("institution", institution);
         Map items = findIdentifiers(filter, 1, inputs, metadataPrefix);
         return finishListIdentifiers(items);
     }
@@ -397,7 +420,7 @@ public class FigshareOAICatalog extends AbstractCatalog {
         connection.setRetryCount(2);
         JSONObject nativeItem = null;
         int result = connection.pulbicArticleDetails(Long.parseLong(localIdentifier));
-        LOG.log(Level.FINE, "findIdentifiers() figshare pulbicArticleDetails return="+result);
+        LOG.log(Level.FINE, "getRecord() figshare pulbicArticleDetails return="+result);
         if (result == 0) {
             nativeItem = connection.responseJSON;
         } else if (result == 2) {
@@ -441,16 +464,14 @@ public class FigshareOAICatalog extends AbstractCatalog {
         ArrayList records = new ArrayList();
         ArrayList records_ids = new ArrayList();
 
-        String filter = searchFilter;
-        if ((until!=null) && (until.length()>0)) {
-            filter = searchFilter + " AND ( :modified_before: " +
-                    convertToFigshareQueryDate(until,true) + " )";
-        }
+        String filter = getSearchFilter(until);
         HashMap inputs = null;
         if ((from!=null) && (from.length()>0)) {
             inputs = new HashMap();
             inputs.put("modified_since", from);
         }
+        if (institution != null)
+            inputs.put("institution", institution);
 
         Map items = findIdentifiers(filter, 1, inputs, metadataPrefix);
         ArrayList jitems = (ArrayList) items.get("items");
@@ -462,8 +483,9 @@ public class FigshareOAICatalog extends AbstractCatalog {
                 records.add(record);
                 records_ids.add(oaiid);
             } catch (IdDoesNotExistException ex) {
+                // TODO, because the ID came originally from a returned oaiid from findIdentifiers, this likely means the item is unpublished 
                 LOG.log(Level.SEVERE, "listRecords() cannot find record Exception",ex);
-                throw new OAIInternalServerError("listRecords() cannot find record Exception: "+ex.toString());
+                //throw new OAIInternalServerError("listRecords() cannot find record Exception: "+ex.toString());
             }
         }
         
@@ -518,8 +540,9 @@ public class FigshareOAICatalog extends AbstractCatalog {
                 records.add(record);
                 records_ids.add(oaiid);
             } catch (IdDoesNotExistException ex) {
+                // TODO, because the ID came originally from a returned oaiid from findIdentifiers, this likely means the item is unpublished 
                 LOG.log(Level.SEVERE, "listRecords() cannot find record Exception",ex);
-                throw new OAIInternalServerError("listRecords() cannot find record Exception: "+ex.toString());
+                //throw new OAIInternalServerError("listRecords() cannot find record Exception: "+ex.toString());
             } catch (CannotDisseminateFormatException ex) {
                 LOG.log(Level.SEVERE, "listRecords() unexpected CannotDisseminateFormatException",ex);
                 throw new OAIInternalServerError("listRecords() unexpected CannotDisseminateFormatException"+ex.toString());
