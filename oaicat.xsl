@@ -7,6 +7,7 @@
                               xmlns:oai_id="http://www.openarchives.org/OAI/2.0/oai-identifier"
                               xmlns:oai_branding="http://www.openarchives.org/OAI/2.0/branding/"
                               xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/"
+                              xmlns:qdc="https://www.dublincore.org/schemas/xmls/qdc/"
                               xmlns:oai_etdms="http://www.ndltd.org/standards/metadata/etdms/1.0/"
                               xmlns:dc="http://purl.org/dc/elements/1.1/"
                               xmlns:dcterms="http://purl.org/dc/terms/"
@@ -358,6 +359,12 @@
   </xsl:template>
 
   <xsl:template match="oai_dc:dc">
+        <table width="100%" border="0" cellspacing="4" cellpadding="0">
+          <xsl:apply-templates/>
+        </table>
+  </xsl:template>
+
+  <xsl:template match="qdc:qualifieddc">
         <table width="100%" border="0" cellspacing="4" cellpadding="0">
           <xsl:apply-templates/>
         </table>

@@ -121,12 +121,12 @@ public class FigshareOAIMain {
             System.err.println("ERROR: Required arguments not found.\n"
                     + "Use:  Emulate an OAI-PMH \"ListRecords\" request outputing the returned records to separate files.\n"
                     + "Arguments:  [-debug|-ddebug] [-get-xml-element xml-element] [-get-xml-content] /path/to/oaicat-figshare.properties output-folder from-date until-date metadataPrefix\n"
-                    + "   xml-element = specify name \"namespace:element\" to extract from within each record (eg. oai_dc:dc or json:element)\n"
+                    + "   xml-element = specify name \"namespace:element\" to extract from within each record (eg. qdc:qualifieddc, oai_dc:dc or json:element)\n"
                     + "   -get-xml-content - return the contents of the element, not the including the XML element"
                     + "   output-folder = folder location to write new record files\n"
                     + "   from-date = yyyy-MM-dd  OR  yyyy-MM-ddTHH:mm:ssX  (eg. 2022-07-02T14:23:48Z best practice to use UTC timezone indicated by X=Z)\n"
                     + "   until-date = as above  OR  - dash for current time\n"
-                    + "   metadataPrefix = oai_dc  OR  json\n"
+                    + "   metadataPrefix = qdc  OR  oai_dc  OR  json\n"
                     + "      (supported metadataPrefix types found in properties file as 'Crosswalks.<metadataPrefix>=...' parameters)");
             System.exit(-1);
         }
@@ -221,20 +221,22 @@ public class FigshareOAIMain {
                     if (xmlelement.length()>0) {
                         int i1 = record.indexOf("<"+xmlelement);
                         int i2 = record.lastIndexOf("</"+xmlelement);
-                        int i3 = record.indexOf(">", i2);
-                        record = record.substring(i1, i3+1);
-                        if (xmlcontent) {
-                            // attempt to strip off root element start and end XML
-                            i1 = record.indexOf(">",1);
-                            i2 = record.lastIndexOf("</"+xmlelement);
-                            record = record.substring(i1+1, i2);
-                            // check if we've got something CDATA escaped, and strip out the CDATA
-                            // this is technically incorrect decoding, but because oaicat-figshare escaped this text originally, it's predictable
-                            if (record.startsWith("<![CDATA[") && record.endsWith("]]>")) {
-                                record = record.substring( "<![CDATA[".length() , record.length()-"]]>".length() );
-                                record = record.replaceAll("]]]]><!\\[CDATA\\[>", "]]>");
+                        if ((i1>=0) && (i2>0)) {
+                            int i3 = record.indexOf(">", i2);
+                            record = record.substring(i1, i3+1);
+                            if (xmlcontent) {
+                                // attempt to strip off root element start and end XML
+                                i1 = record.indexOf(">",1);
+                                i2 = record.lastIndexOf("</"+xmlelement);
+                                record = record.substring(i1+1, i2);
+                                // check if we've got something CDATA escaped, and strip out the CDATA
+                                // this is technically incorrect decoding, but because oaicat-figshare escaped this text originally, it's predictable
+                                if (record.startsWith("<![CDATA[") && record.endsWith("]]>")) {
+                                    record = record.substring( "<![CDATA[".length() , record.length()-"]]>".length() );
+                                    record = record.replaceAll("]]]]><!\\[CDATA\\[>", "]]>");
+                                }
                             }
-                        }       
+                        }
                     }
                     // save to file
                     //System.out.println(record);
@@ -265,8 +267,8 @@ public class FigshareOAIMain {
                 String resumptionToken = (String) resumption_map.get("resumptionToken");
                 if ((resumptionToken==null) || (resumptionToken.length()<=0)) break;
                 // add a pause between calls to be friendly to the figshare API
+                System.out.println("Pausing for 10 seconds...");
                 try {
-                    //System.out.println("***SLEEPING***");
                     TimeUnit.SECONDS.sleep(10);
                 } catch (InterruptedException ex) { }
                 // retrieve the next lot of records starting from resumptionToken

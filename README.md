@@ -7,7 +7,8 @@ Once configured OAICat will provide an OAI-PMH web service that can be used
 to harvest recently updated figshare records.
 By configuring a *FigshareOAICatalog.searchFilter* you can present a virtual
 repository, eg. an institutional figshare repository, or specific groups, or via specific tags.
-The *JSON2oai_dc* Crosswalk outputs rich Dublin Core metadata (DC).
+The *JSON2qdc* Crosswalk outputs qualified Dublin Core metadata (DC).
+The *JSON2oai_dc* Crosswalk outputs essentially the same Dublin Core metadata (DC) but can be customised separately.
 The *JSON2json* Crosswalk simply outputs the source JSON from figshare.
 Beyond ordinary DC elements, figshare files and custom_fields can be output as
 other metadata elements and can be customised flexibly.
@@ -48,13 +49,15 @@ Instructions for Tomcat:
    AbstractCatalog.oaiCatalogClassName=net.datanoid.oaipmh.figshare.FigshareOAICatalog
    AbstractCatalog.recordFactoryClassName=net.datanoid.oaipmh.figshare.JSONRecordFactory
    Crosswalks.oai_dc=net.datanoid.oaipmh.figshare.JSON2oai_dc
+   Crosswalks.qdc=net.datanoid.oaipmh.figshare.JSON2qdc
    Crosswalks.json=net.datanoid.oaipmh.figshare.JSON2json
    ```
 6. Update oaicat.properties settings, especially the following:
    ```
    Identify.* - normal OAICAT settings
-   FigshareOAICatalog.searchFilter
-   FigshareOAICatalog.*  JSON2oai_dc.* - less important, but check other custom settings
+   FigshareOAICatalog.searchFilter - set to a custom search string
+   FigshareOAICatalog.institution - set to your institution/portal ID, an integer
+   FigshareOAICatalog.*  JSON2oai_dc.* JSON2qdc.* - defaults should work for most, but check custom settings
    ```
 7. (Optional) Install the example logging.properties file in `webapps\oaicat\WEB-INF\classes`
    so you can get an oaicat logfile including oaicat-figshare info or debug.
@@ -69,12 +72,12 @@ Instructions for Tomcat:
    * **oaicat-figshare.jar** from [releases](https://github.com/lylewinton/oaicat-figshare/releases)
    * **oaicat-figshare-example.properties** from the [/](https://github.com/lylewinton/oaicat-figshare/) folder
    * put in a ./lib subfolder: **oaicat-1.5.63.jar**, **json-simple-1.1.1.jar** from the [lib](https://github.com/lylewinton/oaicat-figshare/tree/master/lib) folder
-2. Update the properties file oaicat-figshare-example.properties, especially the FigshareOAICatalog.searchFilter custom filter.
+2. Update the properties file oaicat-figshare-example.properties, especially the FigshareOAICatalog.searchFilter custom filter or FigshareOAICatalog.institution.
 3. Make an outputs folder in which it can write records files
 4. Execute the jar file, without arguments for more information on arguments:
    ```
    $ java -jar oaicat-figshare.jar
-   $ java -jar oaicat-figshare.jar -get-xml-element oai_dc:dc oaicat-figshare-example.properties ./outputfolder 2022-04-01 - oai_dc
+   $ java -jar oaicat-figshare.jar -get-xml-element qdc:qualifieddc oaicat-figshare-example.properties ./outputfolder 2022-04-01 - qdc
    $ java -jar oaicat-figshare.jar -get-xml-element json:element -get-xml-content oaicat-figshare-example.properties ./outputfolder 2022-04-01 - json
    ```
 

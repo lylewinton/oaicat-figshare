@@ -35,9 +35,9 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
 /**
- * Convert native JSONObject "item" to oai_dc.
+ * Convert native JSONObject "item" to qdc.
  * This factory assumes the native JSONObject article details from figshare.
- * The "crosswalk", involves pulling out the items required to create DC.
+ * The "crosswalk", involves pulling out the items required to create Qualified DC.
  * 
  * References:
  *  https://www.openarchives.org/documents/
@@ -63,9 +63,9 @@ import org.json.simple.JSONObject;
  * 
  * @author Lyle Winton <lyle@winton.id.au>
  */
-public class JSON2oai_dc extends Crosswalk {
+public class JSON2qdc extends Crosswalk {
     
-    private static final Logger LOG = Logger.getLogger(JSON2oai_dc.class.getName());
+    private static final Logger LOG = Logger.getLogger(JSON2qdc.class.getName());
     private static ArrayList<String> customFieldsRegex = null;
     private static ArrayList<String> customFieldsFormat = null;
     private static String filesFormat = null;
@@ -77,23 +77,23 @@ public class JSON2oai_dc extends Crosswalk {
      *
      * @param properties properties that are needed to configure the crosswalk.
      */
-    public JSON2oai_dc(Properties properties) {
-	super("http://www.openarchives.org/OAI/2.0/oai_dc/ http://www.openarchives.org/OAI/2.0/oai_dc.xsd");
+    public JSON2qdc(Properties properties) {
+	super("https://www.dublincore.org/schemas/xmls/qdc/ https://www.dublincore.org/schemas/xmls/qdc/2008/02/11/qualifieddc.xsd");
         customFieldsRegex = new ArrayList<String>();
         customFieldsFormat = new ArrayList<String>();
         for (int i=1; i<100; i++) {
-            String regex = properties.getProperty("JSON2oai_dc.customFields.Regex."+i);
-            String format = properties.getProperty("JSON2oai_dc.customFields.Format."+i);
+            String regex = properties.getProperty("JSON2qdc.customFields.Regex."+i);
+            String format = properties.getProperty("JSON2qdc.customFields.Format."+i);
             if ((regex==null) && (format==null)) break;
             if ((regex!=null) && (format!=null)) {
                 customFieldsRegex.add(regex);
                 customFieldsFormat.add(format);
             }
         }
-        dcElementAddAttributes = properties.getProperty("JSON2oai_dc.dcElementAddAttributes");
+        dcElementAddAttributes = properties.getProperty("JSON2qdc.dcElementAddAttributes");
         if ( (dcElementAddAttributes==null) || (dcElementAddAttributes.trim().length()==0) )
             dcElementAddAttributes = "";
-        filesFormat = properties.getProperty("JSON2oai_dc.filesFormat");
+        filesFormat = properties.getProperty("JSON2qdc.filesFormat");
         if ( (filesFormat!=null) && (filesFormat.trim().length()==0) )
             filesFormat = null;
     }
@@ -205,10 +205,10 @@ public class JSON2oai_dc extends Crosswalk {
         LOG.log(Level.FINER, "createMetadata() nativeItem="+nativeItem.toString());
         JSONObject jitem = (JSONObject) nativeItem;
 	StringBuffer sb = new StringBuffer();
-	sb.append("<oai_dc:dc xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
+	sb.append("<qdc:qualifieddc xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
                 + "xmlns:dc=\"http://purl.org/dc/elements/1.1/\" "
                 + "xmlns:dcterms=\"http://purl.org/dc/terms/\" "
-                + "xmlns:oai_dc=\"http://www.openarchives.org/OAI/2.0/oai_dc/\" "
+                + "xmlns:qdc=\"https://www.dublincore.org/schemas/xmls/qdc/\" "
                 + "xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\" "
                 + "xsi:schemaLocation=\"");
         sb.append(this.getSchemaLocation());
@@ -532,7 +532,7 @@ public class JSON2oai_dc extends Crosswalk {
                 }
             }
         }
-        sb.append("</oai_dc:dc>");
+        sb.append("</qdc:qualifieddc>");
         LOG.log(Level.FINER, "createMetadata() metadata="+sb.toString());
 	return sb.toString();
     }
