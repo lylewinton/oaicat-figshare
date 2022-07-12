@@ -71,13 +71,6 @@ import org.json.simple.JSONObject;
  * TODO: filter out items based is_embargoed ?
  * TODO: filter out items based is_metadata_record ?
  * 
- * TODO: split out oai_dc from qdc:qualifieddc
- * 
- * TODO: It appears that unpublished items might be returned via the
- *  figshare connection.publicArticlesSearch call, but will trigger a
- *  IdDoesNotExistException for getRecord or listRecords.
- *  Convert these into a OAI delete record.
- * 
  * @author Lyle Winton <lyle@winton.id.au>
  */
 public class FigshareOAICatalog extends AbstractCatalog {
@@ -104,16 +97,15 @@ public class FigshareOAICatalog extends AbstractCatalog {
      * @param properties a properties object containing initialization parameters
      */
     public FigshareOAICatalog(Properties properties) {
-        String maxListSize = properties.getProperty("FigshareOAICatalog.maxListSize");
-        if (maxListSize == null) {
+        String maxlistsize = properties.getProperty("FigshareOAICatalog.maxListSize");
+        if (maxlistsize == null) {
             //throw new IllegalArgumentException("FigshareOAICatalog.maxListSize is missing from the properties file");
             LOG.log(Level.INFO, "FigshareOAICatalog.maxListSize is missing from the properties file. Set to default of 10.");
             FigshareOAICatalog.maxListSize = 10;
         } else {
-            FigshareOAICatalog.maxListSize = Integer.parseInt(maxListSize);
+            FigshareOAICatalog.maxListSize = Integer.parseInt(maxlistsize);
             if (FigshareOAICatalog.maxListSize > 20) {
-                LOG.log(Level.INFO, "maxListSize of over 20 not advisable. Limit set to 20.");
-                FigshareOAICatalog.maxListSize = 20;
+                LOG.log(Level.WARNING, "Warning: maxListSize of over 20 not advisable.");
             }
         }
         
@@ -134,16 +126,14 @@ public class FigshareOAICatalog extends AbstractCatalog {
      * Turn a datetime (until or after) into a figshare search string friendly date.
      *
      * @param indate either until or after date
+     * @param until indicates it's an until date, be tolerant, set the maximum date if problematic
      * @return a reformatted date string
-     * @exception IdDoesNotExistException the specified identifier can't be found
-     * @exception NoMetadataFormatsException the specified identifier was found
-     * but the item is flagged as deleted and thus no schemaLocations (i.e.
-     * metadataFormats) can be produced.
+     * @exception BadArgumentException the specified indate doesn't parse as a date, or granularity is too high
      */
     private String convertToFigshareQueryDate(String indate, boolean until) throws BadArgumentException {
         String outdate = "";
         LOG.log(Level.FINER, "convertToFigshareQueryDate() indate="+indate);
-        String finedate = toFinestUntil(indate);
+        String finedate = toFinestUntil(indate); // throws BadArgumentException is incorrect granularity
         LOG.log(Level.FINER, "convertToFigshareQueryDate() finedate="+finedate);
         SimpleDateFormat strFormatOut1 = new SimpleDateFormat("dd/MM/yyyy");
         strFormatOut1.setTimeZone(TimeZone.getTimeZone("UTC"));
@@ -208,6 +198,7 @@ public class FigshareOAICatalog extends AbstractCatalog {
      * but the item is flagged as deleted and thus no schemaLocations (i.e.
      * metadataFormats) can be produced.
      */
+    @Override
     public Vector getSchemaLocations(String identifier)
         throws IdDoesNotExistException, NoMetadataFormatsException, OAIInternalServerError {
         LOG.log(Level.FINE, "getSchemaLocations() for identifier="+identifier);
@@ -261,7 +252,9 @@ public class FigshareOAICatalog extends AbstractCatalog {
     }
     
     /**
-     * Retrieve a list of identifiers that satisfy the specified criteria
+     * Retrieve a list of identifiers that satisfy the specified criteria.
+     * Note that it may return a Map with an iterator of zero records, as
+     * figshare has no way of determining if the last record has been listed.
      *
      * @param from beginning date using the proper granularity
      * @param until ending date using the proper granularity
@@ -279,6 +272,7 @@ public class FigshareOAICatalog extends AbstractCatalog {
      * its response. It's much more efficient to construct the entire response in one fell
      * swoop by overriding listRecords() as I've done here.
      */
+    @Override
     public Map listIdentifiers(String from, String until, String set, String metadataPrefix)
             throws BadArgumentException, OAIInternalServerError {
         LOG.log(Level.FINE, "listIdentifiers() for from="+from+" until="+until);
@@ -296,7 +290,7 @@ public class FigshareOAICatalog extends AbstractCatalog {
     }
 
     /**
-     * Convert a list of JSONObjects into an identifier list
+     * Convert a list of JSONObjects into an identifier list.
      *
      * @param findIdentifiersMap Output of findIdentifiers.
      * @return a Map object as expected for other listIdentifiers() implementations.
@@ -324,7 +318,9 @@ public class FigshareOAICatalog extends AbstractCatalog {
     }
 
     /**
-     * Retrieve a list of identifiers given figshare params, as JSONObjects
+     * Retrieve a list of identifiers given figshare params, as JSONObjects.
+     * Note that it may return a Map with an iterator of zero records, as
+     * figshare has no way of determining if the last record has been listed.
      *
      * @param filter figshare search filter string.
      * @param page starting page for search results, from 1.
@@ -347,6 +343,7 @@ public class FigshareOAICatalog extends AbstractCatalog {
                 Long id = (Long)jitem.get("id");
                 items.add(jitem);
                 ids.add(id);
+                //LOG.log(Level.FINE, "findIdentifiers() ***DUMP JSON***\n"+jitem.toJSONString());
             }
             findIdentifiersMap.put("items", items);
             findIdentifiersMap.put("ids", ids);
@@ -371,6 +368,8 @@ public class FigshareOAICatalog extends AbstractCatalog {
 
     /**
      * Retrieve the next set of identifiers associated with the resumptionToken
+     * Note that it may return a Map with an iterator of zero records, as
+     * figshare has no way of determining if the last record has been listed.
      *
      * @param resumptionToken implementation-dependent format taken from the
      * previous listIdentifiers() Map result.
@@ -379,6 +378,7 @@ public class FigshareOAICatalog extends AbstractCatalog {
      * @exception BadResumptionTokenException the value of the resumptionToken
      * is invalid or expired.
      */
+    @Override
     public Map listIdentifiers(String resumptionToken)
         throws BadResumptionTokenException, OAIInternalServerError {
         LOG.log(Level.FINE, "listIdentifiers() for resumptionToken="+resumptionToken);
@@ -401,7 +401,7 @@ public class FigshareOAICatalog extends AbstractCatalog {
     }
 
     /**
-     * Retrieve the specified metadata for the specified identifier
+     * Retrieve the specified metadata for the specified identifier.
      *
      * @param identifier the OAI identifier
      * @param metadataPrefix the OAI metadataPrefix
@@ -410,6 +410,7 @@ public class FigshareOAICatalog extends AbstractCatalog {
      * supported by the item.
      * @exception IdDoesNotExistException the identifier wasn't found
      */
+    @Override
     public String getRecord(String identifier, String metadataPrefix)
         throws CannotDisseminateFormatException,
                IdDoesNotExistException, OAIInternalServerError {
@@ -436,14 +437,9 @@ public class FigshareOAICatalog extends AbstractCatalog {
     }
 
     /**
-     * Retrieve a list of records that satisfy the specified criteria. Note, though,
-     * that unlike the other OAI verb type methods implemented here, both of the
-     * listRecords methods are already implemented in AbstractCatalog rather than
-     * abstracted. This is because it is possible to implement ListRecords as a
-     * combination of ListIdentifiers and GetRecord combinations. Nevertheless,
-     * I suggest that you override both the AbstractCatalog.listRecords methods
-     * here since it will probably improve the performance if you create the
-     * response in one fell swoop rather than construct it one GetRecord at a time.
+     * Retrieve a list of records that satisfy the specified criteria.
+     * Note that it may return a Map with an iterator of zero records, as
+     * figshare has no way of determining if the last record has been listed.
      *
      * @param from beginning date using the proper granularity
      * @param until ending date using the proper granularity
@@ -455,7 +451,10 @@ public class FigshareOAICatalog extends AbstractCatalog {
      * but used in FigshareOAIMain.
      * @exception CannotDisseminateFormatException the metadataPrefix isn't
      * supported by the item.
+     * @exception BadArgumentException the data format is incorrect
+     * @exception OAIInternalServerError the figshare server returned an error
      */
+    @Override
     public Map listRecords(String from, String until, String set, String metadataPrefix)
         throws BadArgumentException, CannotDisseminateFormatException, OAIInternalServerError {
         LOG.log(Level.FINE, "listRecords() for from="+from+" until="+until);
@@ -475,16 +474,17 @@ public class FigshareOAICatalog extends AbstractCatalog {
 
         Map items = findIdentifiers(filter, 1, inputs, metadataPrefix);
         ArrayList jitems = (ArrayList) items.get("items");
+        String oaiid = "";
         for (Object jitem: jitems) {
             try {
-                String oaiid = getRecordFactory().getOAIIdentifier(jitem);
+                oaiid = getRecordFactory().getOAIIdentifier(jitem);
                 String record = getRecord( oaiid, metadataPrefix );
                 LOG.log(Level.FINER, "listRecords() adding record="+record);
                 records.add(record);
                 records_ids.add(oaiid);
             } catch (IdDoesNotExistException ex) {
-                // TODO, because the ID came originally from a returned oaiid from findIdentifiers, this likely means the item is unpublished 
-                LOG.log(Level.SEVERE, "listRecords() cannot find record Exception",ex);
+                // it is possible that the item has just been unpublished 
+                LOG.log(Level.WARNING, "listRecords() cannot find record "+oaiid+" Exception",ex);
                 //throw new OAIInternalServerError("listRecords() cannot find record Exception: "+ex.toString());
             }
         }
@@ -499,7 +499,9 @@ public class FigshareOAICatalog extends AbstractCatalog {
     }
 
     /**
-     * Retrieve the next set of records associated with the resumptionToken
+     * Retrieve the next set of records associated with the resumptionToken.
+     * Note that it may return a Map with an iterator of zero records, as
+     * figshare has no way of determining if the last record has been listed.
      *
      * @param resumptionToken implementation-dependent format taken from the
      * previous listRecords() Map result.
@@ -532,16 +534,17 @@ public class FigshareOAICatalog extends AbstractCatalog {
         // Find next page of items.
         Map items = findIdentifiers(filter, page, inputs, metadataPrefix);
         ArrayList jitems = (ArrayList) items.get("items");
+        String oaiid = "";
         for (Object jitem: jitems) {
             try {
-                String oaiid = getRecordFactory().getOAIIdentifier(jitem);
+                oaiid = getRecordFactory().getOAIIdentifier(jitem);
                 String record = getRecord( oaiid, metadataPrefix );
                 LOG.log(Level.FINER, "listRecords() adding record="+record);
                 records.add(record);
                 records_ids.add(oaiid);
             } catch (IdDoesNotExistException ex) {
-                // TODO, because the ID came originally from a returned oaiid from findIdentifiers, this likely means the item is unpublished 
-                LOG.log(Level.SEVERE, "listRecords() cannot find record Exception",ex);
+                // it is possible that the item has just been unpublished 
+                LOG.log(Level.WARNING, "listRecords() cannot find record "+oaiid+" Exception",ex);
                 //throw new OAIInternalServerError("listRecords() cannot find record Exception: "+ex.toString());
             } catch (CannotDisseminateFormatException ex) {
                 LOG.log(Level.SEVERE, "listRecords() unexpected CannotDisseminateFormatException",ex);
@@ -581,19 +584,22 @@ public class FigshareOAICatalog extends AbstractCatalog {
     }
 
     /**
-     * Retrieve a list of sets that satisfy the specified criteria
+     * Not implemented.
+     * Retrieve a list of sets that satisfy the specified criteria.
      *
      * @return a Map object containing "sets" Iterator object (contains
      * <setSpec/> XML Strings) as well as an optional resumptionMap Map.
      * @exception OAIBadRequestException signals an http status code 400 problem
      */
+    @Override
     public Map listSets() throws NoSetHierarchyException {
 	throw new NoSetHierarchyException();
 
     }
 
     /**
-     * Retrieve the next set of sets associated with the resumptionToken
+     * Not implemented.
+     * Retrieve the next set of sets associated with the resumptionToken.
      *
      * @param resumptionToken implementation-dependent format taken from the
      * previous listSets() Map result.
@@ -602,6 +608,7 @@ public class FigshareOAICatalog extends AbstractCatalog {
      * @exception BadResumptionTokenException the value of the resumptionToken
      * is invalid or expired.
      */
+    @Override
     public Map listSets(String resumptionToken)
       throws BadResumptionTokenException {
 	throw new BadResumptionTokenException();
@@ -610,6 +617,7 @@ public class FigshareOAICatalog extends AbstractCatalog {
     /**
      * get the optional millisecondsToLive property (<0 indicates no limit)
      **/
+    @Override
     public int getMillisecondsToLive() {
         if (local_millisecondsToLive == -2) {
             return super.getMillisecondsToLive();
@@ -627,6 +635,7 @@ public class FigshareOAICatalog extends AbstractCatalog {
     /**
      * close the repository
      */
+    @Override
     public void close() { }
     
     /**

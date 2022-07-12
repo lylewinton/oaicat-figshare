@@ -219,43 +219,33 @@ public class FigshareOAIMain {
                     System.out.println("### record="+count+"; id="+recordid+"; filename="+fileout);
                     // find requested element, eg. to remove the OAI wrappers and get metadata payload
                     if (xmlelement.length()>0) {
-                        int i1 = record.indexOf("<"+xmlelement);
-                        int i2 = record.lastIndexOf("</"+xmlelement);
-                        if ((i1>=0) && (i2>0)) {
-                            int i3 = record.indexOf(">", i2);
-                            record = record.substring(i1, i3+1);
-                            if (xmlcontent) {
-                                // attempt to strip off root element start and end XML
-                                i1 = record.indexOf(">",1);
-                                i2 = record.lastIndexOf("</"+xmlelement);
-                                record = record.substring(i1+1, i2);
-                                // check if we've got something CDATA escaped, and strip out the CDATA
-                                // this is technically incorrect decoding, but because oaicat-figshare escaped this text originally, it's predictable
-                                if (record.startsWith("<![CDATA[") && record.endsWith("]]>")) {
-                                    record = record.substring( "<![CDATA[".length() , record.length()-"]]>".length() );
-                                    record = record.replaceAll("]]]]><!\\[CDATA\\[>", "]]>");
-                                }
-                            }
-                        }
+                        if (xmlcontent)
+                            record = Utils.XML_get_element_contents(record,xmlelement);
+                        else
+                            record = Utils.XML_get_element(record,xmlelement);
                     }
                     // save to file
                     //System.out.println(record);
                     try {
-                        Path fileoutpath = Paths.get(outputFolderName, fileout);
-                        LOG.log(Level.FINER, "Creating file: " + fileoutpath.toString());
-                        BufferedWriter out = new BufferedWriter(
-                                new OutputStreamWriter(
-                                        new FileOutputStream(fileoutpath.toFile()),
-                                        "UTF-8")
-                        );
-                        if (!xmlcontent) {
-                            // literal copied from OAICat
-                            out.write("<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n");
+                        if (record == null)
+                            System.out.println("Warning: no XML element found, output file skipped");
+                        else {
+                            Path fileoutpath = Paths.get(outputFolderName, fileout);
+                            LOG.log(Level.FINER, "Creating file: " + fileoutpath.toString());
+                            BufferedWriter out = new BufferedWriter(
+                                    new OutputStreamWriter(
+                                            new FileOutputStream(fileoutpath.toFile()),
+                                            "UTF-8")
+                            );
+                            if (!xmlcontent) {
+                                // literal copied from OAICat
+                                out.write("<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n");
+                            }
+                            out.write(record);
+                            out.write("\n");
+                            out.close();
+                            LOG.log(Level.FINER, "Done writing file: " + fileoutpath.toString());
                         }
-                        out.write(record);
-                        out.write("\n");
-                        out.close();
-                        LOG.log(Level.FINER, "Done writing file: " + fileoutpath.toString());
                     } catch (IOException iOException) {
                         LOG.log(Level.SEVERE, "Problem writing record to file.",iOException);
                         System.exit(-1);

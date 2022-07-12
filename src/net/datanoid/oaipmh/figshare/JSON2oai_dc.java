@@ -115,85 +115,6 @@ public class JSON2oai_dc extends Crosswalk {
     }
 
     /**
-     * Escape string as a safe XML text element, enclosed in CDATA if needed.
-     * @param item object to convert to string
-     * @return escaped string.
-     */
-    private String cdata_escape(Object item) {
-        if (item==null)
-            return null;
-        String out = item.toString();
-        // don't cdata_escape if no XML code
-        if (out.indexOf("<")<0)
-            return out;
-        // cdata_escape any end of CDATA occurences
-        out = out.replaceAll("]]>", "]]]]><![CDATA[>");
-        // return as CDATA
-        return "<![CDATA["+out+"]]>";
-    }
-
-    /**
-     * Escape string as a safe XML attribute value.
-     * @param item object to convert to string
-     * @return escaped string.
-     */
-    private String attrib_escape(Object item) {
-        if (item==null)
-            return null;
-        String out = item.toString();
-        out = out.replaceAll("&", "&amp;");
-        out = out.replaceAll("<", "&lt;");
-        out = out.replaceAll(">", "&gt;");
-        out = out.replaceAll("\"", "&quot;");
-        out = out.replaceAll("'", "&apos;");
-        out = out.replaceAll("\n", "&xA;");
-        out = out.replaceAll("\r", "&xD;");
-        return out;
-    }
-
-    /**
-     * Escape string as a safe XML element name, replacing non-alphanumeric with underscore.
-     * @param item object to convert to string
-     * @return escaped string.
-     */
-    private String element_escape(Object item) {
-        if (item==null)
-            return null;
-        String out = item.toString();
-        return out.toLowerCase().replaceAll("[!\\W]", "_");
-    }
-
-    /**
-     * Escape string as a safe XML element name, replacing non-alphanumeric with underscore.
-     * @param item object to convert to string
-     * @return escaped string.
-     */
-    private String format_name_value(String format, String name, String value, String value2) {
-        String name_element = element_escape(name);
-        String name_cdata = cdata_escape(name);
-        String name_attrib = attrib_escape(name);
-        String val_cdata = cdata_escape(value);
-        String val_attrib = attrib_escape(value);
-        String out = format;
-        out = out.replaceAll("%NAME%",name);
-        out = out.replaceAll("%NAME_ELEMENT%",name_element);
-        out = out.replaceAll("%NAME_CDATA%",name_cdata);
-        out = out.replaceAll("%NAME_ATTRIB%",name_attrib);
-        out = out.replaceAll("%VALUE%",value);
-        out = out.replaceAll("%VALUE_CDATA%",val_cdata);
-        out = out.replaceAll("%VALUE_ATTRIB%",val_attrib);
-        if (value2!=null) {
-            String val2_cdata = cdata_escape(value2);
-            String val2_attrib = attrib_escape(value2);
-            out = out.replaceAll("%VALUE2%",value);
-            out = out.replaceAll("%VALUE2_CDATA%",val2_cdata);
-            out = out.replaceAll("%VALUE2_ATTRIB%",val2_attrib);
-        }
-        return out;
-    }
-
-    
-    /**
      * Perform the actual crosswalk.
      *
      * @param nativeItem the native JSONObject "item".
@@ -217,7 +138,7 @@ public class JSON2oai_dc extends Crosswalk {
         sb.append(">\n");
         // Output the title
         sb.append("<dc:title>");
-        sb.append( cdata_escape( jitem.get("title") ) );
+        sb.append( Utils.XML_cdata_escape( jitem.get("title") ) );
         sb.append("</dc:title>\n");
         LOG.log(Level.FINER, "createMetadata() early metadata="+sb.toString());
         // Output a DOI & DOI URL, and/or a Handle URI, or a figshare URI
@@ -294,12 +215,12 @@ public class JSON2oai_dc extends Crosswalk {
         // Get the description, which can include HTML markup
         if (jitem.get("description") != null) {
             sb.append("<dc:description>");
-            sb.append(cdata_escape( jitem.get("description") ) );
+            sb.append(Utils.XML_cdata_escape( jitem.get("description") ) );
             sb.append("</dc:description>\n");
         }
         // Citation
         sb.append("<dcterms:bibliographicCitation>");
-        sb.append(cdata_escape( jitem.get("citation") ) );
+        sb.append(Utils.XML_cdata_escape( jitem.get("citation") ) );
         sb.append("</dcterms:bibliographicCitation>\n");
         // type - defined_type_name
         // Make output compatible with figshare's OAI-PMH, do the DC defined first, figshare defined second
@@ -367,7 +288,7 @@ public class JSON2oai_dc extends Crosswalk {
         String refby_title = (String) jitem.get("resource_title");
         if ( (refby_title!=null) && (refby_title.length()>0) )  {
             sb.append("<!-- Resource Title in figshare -->\n<dcterms:isReferencedBy>");
-            sb.append(cdata_escape(refby_title) );
+            sb.append(Utils.XML_cdata_escape(refby_title) );
             sb.append("</dcterms:isReferencedBy>\n");
         }
         String refby_doi = (String) jitem.get("resource_doi");
@@ -382,7 +303,7 @@ public class JSON2oai_dc extends Crosswalk {
         JSONObject license = (JSONObject) jitem.get("license");
         if (license!=null) {
             sb.append("<dc:rights>");
-            sb.append(cdata_escape(license.get("name")) );
+            sb.append(Utils.XML_cdata_escape(license.get("name")) );
             sb.append("</dc:rights>\n");
             sb.append("<dc:rights xsi:type=\"dcterms:URI\">");
             sb.append( license.get("url") );
@@ -417,7 +338,7 @@ public class JSON2oai_dc extends Crosswalk {
                 sb.append("<dc:creator");
                 sb.append( rdflink );
                 sb.append(">");
-                sb.append(cdata_escape(authstr) );
+                sb.append(Utils.XML_cdata_escape(authstr) );
                 sb.append("</dc:creator>\n");
                 // Add the creator link
                 if (personuri!=null) {
@@ -435,7 +356,7 @@ public class JSON2oai_dc extends Crosswalk {
                 JSONObject cat = (JSONObject)item;
                 String title = (String)cat.get("title");
                 sb.append("<dc:subject xsi:type=\"figshare:categories\">");
-                sb.append(cdata_escape(title) );
+                sb.append(Utils.XML_cdata_escape(title) );
                 sb.append("</dc:subject>\n");
             }
         // DC.subject - tags[]
@@ -444,7 +365,7 @@ public class JSON2oai_dc extends Crosswalk {
             for (Object item: tags) {
                 String tag = (String)item;
                 sb.append("<dc:subject xsi:type=\"figshare:tags\">");
-                sb.append(cdata_escape(tag) );
+                sb.append(Utils.XML_cdata_escape(tag) );
                 sb.append("</dc:subject>\n");
             }
         // DCTERMS.references - references[]
@@ -460,7 +381,7 @@ public class JSON2oai_dc extends Crosswalk {
                     if (ref.startsWith("http"))
                         sb.append(" xsi:type=\"dcterms:URI\"");
                     sb.append(">");
-                    sb.append(cdata_escape(ref) );
+                    sb.append(Utils.XML_cdata_escape(ref) );
                     sb.append("</dcterms:references>\n");
                 }
             }
@@ -480,7 +401,7 @@ public class JSON2oai_dc extends Crosswalk {
                     fundingstr = fundingstr + ", funded by " + funder;
                 //sb.append("<dcterms:isPartOf>");
                 sb.append("<dc:description.funding>");
-                sb.append(cdata_escape(fundingstr) );
+                sb.append(Utils.XML_cdata_escape(fundingstr) );
                 //sb.append("</dcterms:isPartOf>\n");
                 sb.append("</dc:description.funding>\n");
             }
@@ -497,7 +418,7 @@ public class JSON2oai_dc extends Crosswalk {
                     String md5 = (String)file.get("computed_md5");
                     String downl = (String)file.get("download_url");
                     if ( (downl!=null) && (downl.length()>0) ) {
-                        sb.append( format_name_value(filesFormat,fname,downl,md5) );
+                        sb.append( Utils.XML_format_name_value(filesFormat,fname,downl,md5) );
                         sb.append("\n");
                     }
                 }
@@ -523,7 +444,7 @@ public class JSON2oai_dc extends Crosswalk {
                         }
                         for (Object val: (JSONArray)values) {
                             String valstr = val.toString();
-                            sb.append( format_name_value(format,name,valstr,null) );
+                            sb.append( Utils.XML_format_name_value(format,name,valstr,null) );
                             sb.append("\n");
                         }
                         // after first match don't bother with others

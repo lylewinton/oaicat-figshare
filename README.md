@@ -2,10 +2,10 @@
 
 **OAICAT-figshare** is an extension library for
 [OAICat](https://www.oclc.org/research/areas/data-science/oaicat.html)
-that implements customised interfaces for accessing your figshare repository.
+that implements customisable interfaces that accessing your figshare repository.
 Once configured OAICat will provide an OAI-PMH web service that can be used
 to harvest recently updated figshare records.
-By configuring a *FigshareOAICatalog.searchFilter* you can present a virtual
+By configuring a *FigshareOAICatalog.searchFilter* and/or *FigshareOAICatalog.institution* you can present a virtual
 repository, eg. an institutional figshare repository, or specific groups, or via specific tags.
 The *JSON2qdc* Crosswalk outputs qualified Dublin Core metadata (DC).
 The *JSON2oai_dc* Crosswalk outputs essentially the same Dublin Core metadata (DC) but can be customised separately.

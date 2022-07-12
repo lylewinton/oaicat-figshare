@@ -86,28 +86,11 @@ public class JSON2json  extends Crosswalk {
 	sb.append("\" ");
         sb.append("name=\"json\" type=\"xs:string\" ");
         sb.append(">");
-        sb.append( cdata_escape( jitem.toJSONString() ) );
+        sb.append( Utils.XML_cdata_escape( jitem.toJSONString() ) );
         sb.append("</json:element>");
         LOG.log(Level.FINER, "createMetadata() metadata="+sb.toString());
 	return sb.toString();
     }
 
-    /**
-     * Escape string as a safe XML text element, enclosed in CDATA if needed.
-     * @param item object to convert to string
-     * @return escaped string.
-     */
-    private String cdata_escape(Object item) {
-        if (item==null)
-            return null;
-        String out = item.toString();
-        // don't cdata_escape if no XML code
-        if (out.indexOf("<")<0)
-            return out;
-        // cdata_escape any end of CDATA occurences
-        out = out.replaceAll("]]>", "]]]]><![CDATA[>");
-        // return as CDATA
-        return "<![CDATA["+out+"]]>";
-    }
 
 }
