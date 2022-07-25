@@ -33,7 +33,11 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -324,9 +328,11 @@ public class FigshareConnection {
      * @param page Requested page starting with 1.
      * @param page_size Number of articles returned each page.
      * @param inputs Any additional params to send to figshare, or null if none. Can be used to override order/order_direction.
+     * @param fromdate Optional modified_since date, inclusive of items modified in specified second, or null if none.
+     * @param todate Optional modified_before date, exclusive of items modified in specified second, or null if none.
      * @return 0 for success, -1 HTTP error, 1 figshare error.
      */
-    public int publicArticlesSearch(String query, int page, int page_size, Map inputs) {
+    public int publicArticlesSearch(String query, int page, int page_size, Map inputs, Date fromdate, Date todate) {
         JSONObject data = new JSONObject();
         data.put("search_for", query);
         data.put("page", new Integer(page));
@@ -336,6 +342,16 @@ public class FigshareConnection {
         if (inputs != null) {
             inputs.forEach((k,v)-> data.put(k,v) );
         }
+        if (fromdate!=null) {
+            data.put("modified_since", datetimeToFigshareDatetime(fromdate,false));
+        }
+        if (todate!=null) {
+            String filterdates = ":modified_before: " + datetimeToFigshareDatetime(todate,true);
+            if ((query==null) || (query.trim().length()<=0)) {
+                data.put("search_for", filterdates);
+            } else if (filterdates!=null)
+                data.put("search_for", query + " AND ( " + filterdates + " )");
+        }
         int ret = this.call("POST","/articles/search", data);
         if ( (ret==0) && (statusCode != 200) )
             return 1;
@@ -343,19 +359,30 @@ public class FigshareConnection {
     }
 
     /**
+     * Public search for articles via structured query string, with additional inputs.
+     */
+    public int publicArticlesSearch(String query, int page, int page_size, Map inputs) {
+        return publicArticlesSearch(query,page,page_size,inputs,null,null);
+    }
+
+    /**
      * Public search for articles via structured query string.
      */
     public int publicArticlesSearch(String query, int page, int page_size) {
-        return publicArticlesSearch(query,page,page_size,null);
+        return publicArticlesSearch(query,page,page_size,null,null,null);
     }
 
     /**
      * Generic HTTP method call with JSON input data, and expected JSON output.
-     * Whatever is needed for https://docs.figshare.com/
+     * Whatever is needed for https://docs.figshare.com/ .
+     * This handles the built in retry.
+     * After the call responseJSON or responseArrayJSON array are set depending
+     * on what was returned.
+     * Also set are response, statusCode, statusMessage, errorMessage, and lastError.
      * @param method POST, GET, PUT
      * @param path Path of the API call after https://api.figshare.com/v2
      * @param data Data sent as part of the API call.
-     * @return
+     * @return lastError is returned.
      */
     public int call(String method, String path, JSONObject data) {
         // TODO implement Impersonation see figshare docs
@@ -488,5 +515,31 @@ public class FigshareConnection {
         LOG.log(Level.FINE, "call() return="+lastError);
         return lastError;
     }
+    
+    /**
+     * Return a formatted search string for Figshare queries.
+     * Note that dates beyond the year 2999 cause a figshare error,
+     * so these are considered a forever placeholder and are converted to 2999-12-31T23:59:59Z .
+     * @param indate date to be converted
+     * @param searchString true if string intended for a search argument, false if intended for JSON/Map parameter input.
+     * @return date in figshare format and UTC timezone
+     */
+    public static String datetimeToFigshareDatetime(Date indate, boolean searchString) {
+        SimpleDateFormat strFormatOut;
+        if (searchString)
+            strFormatOut = new SimpleDateFormat("dd/MM/yyyy'T'HH:mm:ss'Z'"); // force UTC symbol 'Z'
+        else
+            strFormatOut = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        strFormatOut.setTimeZone(TimeZone.getTimeZone("UTC"));
+        Calendar indatec = Calendar.getInstance();
+        indatec.setTimeZone(TimeZone.getTimeZone("UTC"));
+        indatec.setTime(indate);
+        // figshare has a maximum valid date that can be specified, essentially the far future (eg. year 2999)
+        if (indatec.get(Calendar.YEAR) > 2999) {
+            indatec.set(2999, Calendar.DECEMBER, 31, 23, 59, 59);
+        }
+        return strFormatOut.format(indatec.getTime());
+    }
+    
 }
 
