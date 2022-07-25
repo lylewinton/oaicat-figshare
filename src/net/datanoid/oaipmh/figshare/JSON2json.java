@@ -77,7 +77,7 @@ public class JSON2json  extends Crosswalk {
         LOG.log(Level.FINER, "createMetadata() nativeItem="+nativeItem.toString());
         JSONObject jitem = (JSONObject) nativeItem;
 	StringBuffer sb = new StringBuffer();
-        //TODO seek better schema to use than XSD itself
+        //TODO seek a better schema element to use than XSD element itself
 	sb.append("<json:element xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
                 + "xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" "
                 + "xmlns:json=\"http://www.w3.org/2001/XMLSchema\" "
@@ -86,6 +86,18 @@ public class JSON2json  extends Crosswalk {
 	sb.append("\" ");
         sb.append("name=\"json\" type=\"xs:string\" ");
         sb.append(">");
+        // The JSON standard (EMCA-404) allows for any UTF-8 characters to be within
+        // a string, except backslash and doublequote which are to be escaped (\\ and \").
+        // Typically \n \r \f \b \t and \/ are escaped also.
+        // Other UTF-16 characters, for example accents and multilingual characters,
+        // can be further escaped using backslash-u and 4 hex digits eg. \u0000 ,
+        // but technically this is not required.
+        // https://www.ecma-international.org/publications-and-standards/standards/ecma-404/
+        // Note that figshare outputs hex escaped UTF-8 characters eg. \u0000.
+        // This may allow better browser compatibility with JSON, as the whole
+        // of JSON can then effectively be 7 bit ASCI. 
+        // If this is ever required the following will work.
+        //sb.append( Utils.XML_cdata_escape( Utils.StringToUTF8Escaped( jitem.toJSONString() ) ) );
         sb.append( Utils.XML_cdata_escape( jitem.toJSONString() ) );
         sb.append("</json:element>");
         LOG.log(Level.FINER, "createMetadata() metadata="+sb.toString());
