@@ -112,6 +112,12 @@ public class Utils {
     }
 
 
+    /**
+     * Find and extract an XML element and all contents withing the string.
+     * @param doc document string to search within.
+     * @param xmlelement element to search for, include any namespace prefix
+     * @return element and contents as string.
+     */
     protected static String XML_get_element(String doc, String xmlelement) {
         int i1 = doc.indexOf("<"+xmlelement);
         int i2 = doc.lastIndexOf("</"+xmlelement);
@@ -122,6 +128,13 @@ public class Utils {
         return null;
     }
 
+    /**
+     * Find and extract an XML element contents withing the string.
+     * If element contents is fully CDATA wrapped, CDATA escaping is removed.
+     * @param doc document string to search within.
+     * @param xmlelement element to search for, include any namespace prefix
+     * @return contents as string.
+     */
     protected static String XML_get_element_contents(String doc, String xmlelement) {
         String element = XML_get_element(doc,xmlelement);
         if (element==null) return null;
@@ -138,6 +151,24 @@ public class Utils {
             element = element.replaceAll("]]]]><!\\[CDATA\\[>", "]]>");
         }
         return element;
+    }
+    
+    /**
+     * Convert java String (native UTF16) to UTF-8 string with typical
+     * software code escaping of non ASCII chars as hex codes.  eg. \u0000
+     * @param input string to be escaped.
+     * @return escaped string.
+     */
+    protected static String StringToUTF8Escaped(String input) {
+        StringBuilder builder = new StringBuilder();
+        for(char ch: input.toCharArray()) {
+            if(ch >= 0x20 && ch <= 0x7E) {
+                builder.append(ch);
+            } else {
+                builder.append(String.format("\\u%04X", (int)ch));
+            }
+        }
+        return builder.toString();        
     }
     
 }

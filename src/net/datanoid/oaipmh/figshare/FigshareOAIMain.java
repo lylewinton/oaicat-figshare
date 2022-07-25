@@ -241,6 +241,10 @@ public class FigshareOAIMain {
                                 // literal copied from OAICat
                                 out.write("<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n");
                             }
+                            // The output is a valid UTF-8 encoded file.
+                            // Note that figshare outputs hex escaped UTF-8 characters eg. \u0000
+                            // If this is ever required the following will work.
+                            //out.write(Utils.StringToUTF8Escaped(record));
                             out.write(record);
                             out.write("\n");
                             out.close();

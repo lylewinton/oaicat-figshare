@@ -31,9 +31,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Properties;
-import java.util.StringTokenizer;
 import java.util.Vector;
 
 import ORG.oclc.oai.server.catalog.AbstractCatalog;
@@ -48,8 +46,6 @@ import ORG.oclc.oai.server.verb.NoSetHierarchyException;
 import ORG.oclc.oai.server.verb.OAIInternalServerError;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.GregorianCalendar;
 import java.util.TimeZone;
 import java.util.UUID;
 import java.util.logging.Level;
@@ -112,8 +108,9 @@ public class FigshareOAICatalog extends AbstractCatalog {
         searchFilter = properties.getProperty("FigshareOAICatalog.searchFilter");
         if (searchFilter != null) {
             if (searchFilter.trim().length() == 0)
-                searchFilter = null;
-        }
+                searchFilter = "";
+        } else
+            searchFilter = "";
         
         String institutionstring = properties.getProperty("FigshareOAICatalog.institution");
         if (institutionstring != null) {
@@ -123,64 +120,54 @@ public class FigshareOAICatalog extends AbstractCatalog {
     
     
     /**
-     * Turn a datetime (until or after) into a figshare search string friendly date.
+     * Turn a datetime into a java Date.
+     * Takes into account the finest configured data format, ie. if includes hours:mins:seconds
      *
-     * @param indate either until or after date
-     * @param until indicates it's an until date, be tolerant, set the maximum date if problematic
+     * @param indate OAI-PMH formatted date either until or after date
+     * @param until indicates it's an until date, be tolerant, don't fail, set date to null if problematic
      * @return a reformatted date string
      * @exception BadArgumentException the specified indate doesn't parse as a date, or granularity is too high
      */
-    private String convertToFigshareQueryDate(String indate, boolean until) throws BadArgumentException {
-        String outdate = "";
-        LOG.log(Level.FINER, "convertToFigshareQueryDate() indate="+indate);
+    private Date convertToQueryDate(String indate, boolean until) throws BadArgumentException {
+        if (indate==null) return null;
+        Date outdate = null;
+        LOG.log(Level.FINER, "convertToQueryDate() indate="+indate);
         String finedate = toFinestUntil(indate); // throws BadArgumentException is incorrect granularity
-        LOG.log(Level.FINER, "convertToFigshareQueryDate() finedate="+finedate);
-        SimpleDateFormat strFormatOut1 = new SimpleDateFormat("dd/MM/yyyy");
-        strFormatOut1.setTimeZone(TimeZone.getTimeZone("UTC"));
-        SimpleDateFormat strFormatOut2 = new SimpleDateFormat("dd/MM/yyyy'T'HH:mm:ss'Z'");
-        strFormatOut2.setTimeZone(TimeZone.getTimeZone("UTC"));
+        LOG.log(Level.FINER, "convertToQueryDate() finedate="+finedate);
         String formatIn1 = "yyyy-MM-dd";
         String formatIn2 = "yyyy-MM-dd'T'HH:mm:ssX";
         SimpleDateFormat strFormatIn1 = new SimpleDateFormat(formatIn1);
         strFormatIn1.setTimeZone(TimeZone.getTimeZone("UTC"));
         SimpleDateFormat strFormatIn2 = new SimpleDateFormat(formatIn2);
         strFormatIn2.setTimeZone(TimeZone.getTimeZone("UTC"));
-        // Fix OAICAT setting the year to 9999, as figshare needs 2999
-        if ( finedate.startsWith("9999") ) {
-            finedate = "2999"+finedate.substring(4);
-        }
         if (finedate.length() == formatIn1.length()) {
-            LOG.log(Level.FINER, "convertToFigshareQueryDate() found length of formatIn1="+formatIn1);
+            LOG.log(Level.FINER, "convertToQueryDate() found length of formatIn1="+formatIn1);
             try {
-                Date idate = strFormatIn1.parse(finedate);
-                LOG.log(Level.FINER, "convertToFigshareQueryDate() idate="+idate.toString());
-                outdate = strFormatOut1.format(idate);
-                LOG.log(Level.FINER, "convertToFigshareQueryDate() outdate="+outdate);
+                outdate = strFormatIn1.parse(finedate);
+                LOG.log(Level.FINER, "convertToQueryDate() idate="+outdate.toString());
             } catch (ParseException ex) {
-                LOG.log(Level.FINE, "convertToFigshareQueryDate ParseException on '"+indate+"' (finest='"+finedate+"')", ex);
+                LOG.log(Level.FINE, "convertToQueryDate ParseException on '"+indate+"' (finest='"+finedate+"')", ex);
                 if (until) {
-                    LOG.log(Level.FINE, "convertToFigshareQueryDate ParseException bad until assumed.");
-                    outdate = "31/12/2999";
+                    LOG.log(Level.FINE, "convertToQueryDate ParseException bad until assumed.");
+                    outdate = null;
                 } else
                     throw new BadArgumentException();
             }
         } else if (finedate.length() == strFormatIn2.format(new Date()).length()) {
-            LOG.log(Level.FINER, "convertToFigshareQueryDate() found length of formatIn2="+formatIn2);
+            LOG.log(Level.FINER, "convertToQueryDate() found length of formatIn2="+formatIn2);
             try {
-                Date idate = strFormatIn2.parse(finedate);
-                LOG.log(Level.FINER, "convertToFigshareQueryDate() idate="+idate.toString());
-                outdate = strFormatOut2.format(idate);
-                LOG.log(Level.FINER, "convertToFigshareQueryDate() outdate="+outdate);
+                outdate = strFormatIn2.parse(finedate);
+                LOG.log(Level.FINER, "convertToQueryDate() idate="+outdate.toString());
             } catch (ParseException ex) {
-                LOG.log(Level.FINE, "convertToFigshareQueryDate ParseException on '"+indate+"' (finest='"+finedate+"')", ex);
+                LOG.log(Level.FINE, "convertToQueryDate ParseException on '"+indate+"' (finest='"+finedate+"')", ex);
                 if (until) {
-                    LOG.log(Level.FINE, "convertToFigshareQueryDate ParseException bad until assumed.");
-                    outdate = "31/12/2999T00:00:00";
+                    LOG.log(Level.FINE, "convertToQueryDate ParseException bad until assumed.");
+                    outdate = null;
                 } else
                     throw new BadArgumentException();
             }
         } else {
-            LOG.log(Level.FINE, "convertToFigshareQueryDate cannot match expected format length on '"+indate+"' (finest='"+finedate+"')");
+            LOG.log(Level.FINE, "convertToQueryDate cannot match expected format length on '"+indate+"' (finest='"+finedate+"')");
             throw new BadArgumentException();
         }
         return outdate;
@@ -234,23 +221,6 @@ public class FigshareOAICatalog extends AbstractCatalog {
         return ret;
     }
 
-    private String getSearchFilter(String until) throws BadArgumentException {
-        String filterdates = null;
-        if ((until!=null) && (until.length()>0)) {
-            filterdates = ":modified_before: " +
-                    convertToFigshareQueryDate(until,true);
-        }
-        String filter = "";
-        if (searchFilter==null) {
-            if (filterdates!=null)
-                filter = filterdates;
-        } else if (filterdates!=null)
-            filter = searchFilter + " AND ( " + filterdates + " )";
-        else
-            filter = searchFilter;
-        return filter;
-    }
-    
     /**
      * Retrieve a list of identifiers that satisfy the specified criteria.
      * Note that it may return a Map with an iterator of zero records, as
@@ -277,16 +247,35 @@ public class FigshareOAICatalog extends AbstractCatalog {
             throws BadArgumentException, OAIInternalServerError {
         LOG.log(Level.FINE, "listIdentifiers() for from="+from+" until="+until);
         purge(); // clean out old resumptionTokens
-        String filter = getSearchFilter(until);
+        String filter = searchFilter;
         HashMap inputs = null;
-        if ((from!=null) && (from.length()>0)) {
+        if (institution != null) {
             inputs = new HashMap();
-            inputs.put("modified_since", from);
-        }
-        if (institution != null)
             inputs.put("institution", institution);
-        Map items = findIdentifiers(filter, 1, inputs, metadataPrefix);
+        }
+        Map items = findIdentifiers(filter, 1, inputs, metadataPrefix, from, until);
         return finishListIdentifiers(items);
+    }
+
+    /**
+     * Retrieve the next set of identifiers associated with the resumptionToken
+     * Note that it may return a Map with an iterator of zero records, as
+     * figshare has no way of determining if the last record has been listed.
+     *
+     * @param resumptionToken implementation-dependent format taken from the
+     * previous listIdentifiers() Map result.
+     * @return a Map object containing entries for "headers" and "identifiers" Iterators
+     * (both containing Strings) as well as an optional "resumptionMap" Map.
+     * @exception BadResumptionTokenException the value of the resumptionToken
+     * is invalid or expired.
+     */
+    @Override
+    public Map listIdentifiers(String resumptionToken)
+        throws BadResumptionTokenException, OAIInternalServerError {
+        LOG.log(Level.FINE, "listIdentifiers() for resumptionToken="+resumptionToken);
+        Map items = findIdentifiers(resumptionToken);
+        Map rmap = finishListIdentifiers(items);
+        return rmap;
     }
 
     /**
@@ -327,14 +316,17 @@ public class FigshareOAICatalog extends AbstractCatalog {
      * @param inputs figshare search input params.
      * @return a Map including "items"(JSONObject) "ids"(Long) "resumptionId"(String)
      */
-    private Map findIdentifiers(String filter, int page, Map inputs, String metadataPrefix) throws OAIInternalServerError {
+    private Map findIdentifiers(String filter, int page, Map inputs, String metadataPrefix, String from, String until)
+            throws BadArgumentException, OAIInternalServerError {
         Map findIdentifiersMap = new HashMap();
         ArrayList items = new ArrayList();
         ArrayList ids = new ArrayList();
         LOG.log(Level.FINE, "findIdentifiers() page="+page+" filter="+filter);
         FigshareConnection connection = new FigshareConnection();
         connection.setRetryCount(2);
-        int result = connection.publicArticlesSearch(filter, page, maxListSize, inputs);
+        int result = connection.publicArticlesSearch(filter, page, maxListSize, inputs,
+                convertToQueryDate(from,false),
+                convertToQueryDate(until,true) );
         LOG.log(Level.FINE, "findIdentifiers() figshare publicArticlesSearch return="+result);
         if (result == 0) {
             LOG.log(Level.FINE, "findIdentifiers() publicArticlesSearch count="+connection.responseArrayJSON.size());
@@ -356,6 +348,10 @@ public class FigshareOAICatalog extends AbstractCatalog {
                 resumptionData.put("page", new Integer(page+1));
                 resumptionData.put("inputs", inputs);
                 resumptionData.put("mdprefix", metadataPrefix);
+                if (from!=null)
+                resumptionData.put("from", from);
+                if (until!=null)
+                resumptionData.put("until", until);
                 resumptionResults.put(resumptionId, resumptionData);
                 findIdentifiersMap.put("resumptionId", resumptionId);
             }
@@ -367,39 +363,39 @@ public class FigshareOAICatalog extends AbstractCatalog {
     }
 
     /**
-     * Retrieve the next set of identifiers associated with the resumptionToken
-     * Note that it may return a Map with an iterator of zero records, as
-     * figshare has no way of determining if the last record has been listed.
+     * Retrieve a list of identifiers given resumptionToken.
+     * See above.
      *
-     * @param resumptionToken implementation-dependent format taken from the
-     * previous listIdentifiers() Map result.
-     * @return a Map object containing entries for "headers" and "identifiers" Iterators
-     * (both containing Strings) as well as an optional "resumptionMap" Map.
-     * @exception BadResumptionTokenException the value of the resumptionToken
-     * is invalid or expired.
+     * @param resumptionToken OAI resumption token.
+     * @return a Map including "items"(JSONObject) "ids"(Long) "resumptionId"(String)
      */
-    @Override
-    public Map listIdentifiers(String resumptionToken)
-        throws BadResumptionTokenException, OAIInternalServerError {
-        LOG.log(Level.FINE, "listIdentifiers() for resumptionToken="+resumptionToken);
+    private Map findIdentifiers(String resumptionToken)
+            throws BadResumptionTokenException, OAIInternalServerError {
+        LOG.log(Level.FINE, "findIdentifiers() for resumptionToken="+resumptionToken);
         purge(); // clean out old resumptionTokens
-        
         Map resumptionData = (HashMap) resumptionResults.get(resumptionToken);
         if (resumptionData == null) {
-            LOG.log(Level.SEVERE, "listIdentifiers() BadResumptionTokenException resumptionToken="+resumptionToken);
+            LOG.log(Level.SEVERE, "findIdentifiers() BadResumptionTokenException resumptionToken="+resumptionToken);
             throw new BadResumptionTokenException();
         }
         String filter = (String) resumptionData.get("filter");
         Integer page = (Integer) resumptionData.get("page");
         Map inputs = (Map) resumptionData.get("inputs");
         String metadataPrefix = (String) resumptionData.get("mdprefix");
-        
-        Map items = findIdentifiers(filter, page, inputs, metadataPrefix);
-        Map rmap = finishListIdentifiers(items);
+        String from = (String) resumptionData.get("from");
+        String until = (String) resumptionData.get("until");
+        Map items = null;
+        try {
+            items = findIdentifiers(filter, page, inputs, metadataPrefix, from, until);
+        } catch (BadArgumentException ex) {
+            LOG.log(Level.SEVERE, "findIdentifiers() Unexpected failure, succeeded initially, but not on resumptionToken="+resumptionToken, ex);
+            return null;
+        }
         resumptionResults.remove(resumptionToken);
-        return rmap;
+        return items;
     }
-
+    
+    
     /**
      * Retrieve the specified metadata for the specified identifier.
      *
@@ -463,16 +459,14 @@ public class FigshareOAICatalog extends AbstractCatalog {
         ArrayList records = new ArrayList();
         ArrayList records_ids = new ArrayList();
 
-        String filter = getSearchFilter(until);
+        String filter = searchFilter;
         HashMap inputs = null;
-        if ((from!=null) && (from.length()>0)) {
+        if (institution != null) {
             inputs = new HashMap();
-            inputs.put("modified_since", from);
-        }
-        if (institution != null)
             inputs.put("institution", institution);
+        }
 
-        Map items = findIdentifiers(filter, 1, inputs, metadataPrefix);
+        Map items = findIdentifiers(filter, 1, inputs, metadataPrefix, from, until);
         ArrayList jitems = (ArrayList) items.get("items");
         String oaiid = "";
         for (Object jitem: jitems) {
@@ -519,20 +513,16 @@ public class FigshareOAICatalog extends AbstractCatalog {
         Map listRecordsMap = new HashMap();
         ArrayList records = new ArrayList();
         ArrayList records_ids = new ArrayList();
-        purge(); // clean out old resumptionTokens
         
-        // Obtain resumption details, should include last page+1
+        // Obtain some resumption details, should include last page+1
         Map resumptionData = (HashMap) resumptionResults.get(resumptionToken);
         if (resumptionData == null) {
             throw new BadResumptionTokenException();
         }
-        String filter = (String) resumptionData.get("filter");
-        Integer page = (Integer) resumptionData.get("page");
-        Map inputs = (Map) resumptionData.get("inputs");
         String metadataPrefix = (String) resumptionData.get("mdprefix");
         
         // Find next page of items.
-        Map items = findIdentifiers(filter, page, inputs, metadataPrefix);
+        Map items = findIdentifiers(resumptionToken);
         ArrayList jitems = (ArrayList) items.get("items");
         String oaiid = "";
         for (Object jitem: jitems) {
